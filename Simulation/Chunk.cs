@@ -11,7 +11,8 @@ public class Chunk{
 	public Vector2 pos{get; private set;}
 	Particle[,] particles;
 	List<Tuple<int,int>> changes;//Destination, Source
-	public int chunk_timer;
+	public float sleep_timer=0;
+	public float sleep_time{get; private set;}=5;
 	World world;
 
 	//Dirty rect. Should be only read from (apart from when swapping)
@@ -19,6 +20,7 @@ public class Chunk{
 	//Working dirty rect. Should only be written to.
 	int m_minXw,m_minYw,m_maxXw,m_maxYw;
 
+	
 	
 
 	public Chunk(int size,int pos_x, int pos_y,World world){
@@ -63,37 +65,41 @@ public class Chunk{
 		for(int x=m_minX;x<=m_maxX;x++){
 			for(int y=m_minY;y<=m_maxY;y++){
 				//Continue if outside bounds of chunk
-				if(x<0||x>=width||y<0||y>=height){
-					Console.WriteLine("Out of bounds");
-					//Get chunk at x,y
-					Chunk c=world.GetChunkAt(x,y);
-					Console.WriteLine("Chunk at "+x+","+y+" is "+c.pos.X+","+c.pos.Y);
+				if((x<0||x>=width||y<0||y>=height) || particles[x,y].sleep_timer>=particles[x,y].sleep_time){
 					continue;
 				}
 
 				particles[x,y].Update();
 			}
 		}
-		chunk_timer=world.worldTimer+1;
+		//Log sleep timer
+		Console.WriteLine(sleep_timer);
+
+		sleep_timer+=1*GetFrameTime();
 	}
 	//Update the dirty rectange to encompass the given coordinates
 	public void KeepAlive(int x, int y){
+		//Make sure within bounds
+		if(!(x<0||x>=width||y<0||y>=height)){
+			particles[x,y].sleep_timer=0;
+		}
+
 		m_minXw=Math.Clamp(Math.Min(x-4,m_minXw),0,width-1);
 		m_minYw=Math.Clamp(Math.Min(y-4,m_minYw),0,height-1);
 		m_maxXw=Math.Clamp(Math.Max(x+4,m_maxXw),0,width-1);
 		m_maxYw=Math.Clamp(Math.Max(y+4,m_maxYw),0,height-1);
+		
 	}
 	
 	//Move a cell
 	public void Move(int x, int y,int xto, int yto){		
 		//Return if not in bounds
 		if(x<0||x>=width||y<0||y>=height){
-			Console.WriteLine("Out of bounds");
 			return;
 		}
 		//Convert to 1D index
-		int index1=y*width+x;
-		int index2=yto*width+xto;
+		int index1=x+width*y;
+		int index2=xto+width*yto;
 		changes.Add(
 			new Tuple<int,int>(index2,index1)
 		);
@@ -102,7 +108,7 @@ public class Chunk{
 	//Commit the particle movements to the particle array
 	public void CommitCells(){
 
-		//Remove moves that aren't valid (destination is filled)
+		//Remove moves that aren't valid (destination is filled with a particle that has a higher density than the moving particle)
 		for(int i=0; i<changes.Count; i++){
 			//Convert to 2D coordinates
 			int dest_x=changes[i].Item1%width;
@@ -110,10 +116,11 @@ public class Chunk{
 			int src_x=changes[i].Item2%width;
 			int src_y=changes[i].Item2/width;
 			//Check if out of bounds, return if so
-
+			//Get particle at src
+			Particle source=particles[src_x,src_y];
 
 			Particle destination = particles[dest_x,dest_y];
-			if(destination.name!="Air"){
+			if(destination.properties.density>=source.properties.density){
 				changes[i]=changes[changes.Count-1];
 				changes.RemoveAt(changes.Count-1);
 				i--;
@@ -132,13 +139,30 @@ public class Chunk{
 
 				//Convert destination and source to 2D coordinates
 				int dest_x=changes[rand].Item1%width;
-				int dest_y=changes[rand].Item1/width;
+				int dest_y=(changes[rand].Item1/width)%height;
 				int src_x=changes[rand].Item2%width;
-				int src_y=changes[rand].Item2/width;
+				int src_y=(changes[rand].Item2/width)%height;
+				//Check difference between dest_y and src_y
+				if(dest_y-src_y>1){
+					Console.WriteLine("Somehow teleported");
+				}
+
+				//Source particle
+				Particle particle_source=particles[src_x,src_y];
+				//Destination particle
+				Particle particle_destination = particles[dest_x,dest_y];
+				//World coordinates of dest and src
+				Vector2 dest_w = world.toWorldCoorinates(this,dest_x, dest_y);
+				Vector2 src_w =  world.toWorldCoorinates(this,src_x,  src_y );
+
+				if((dest_y==height) && particle_source.properties.density==0.1f){
+					Console.WriteLine("?????");
+				}
 
 				//Move the particle
-				Set(dest_x,dest_y,particles[src_x,src_y]);
-				Set(src_x,src_y,new Air(src_x,src_y,world));
+				Set(dest_x,dest_y,particle_source);
+				Set(src_x,src_y,particle_destination);
+
 				i_prev=i+1;
 			}
 		}
@@ -149,35 +173,39 @@ public class Chunk{
 	public void Set(int x,int y,Particle p){
 		//Make sure x and y are in range
 		if(x<0||x>=width||y<0||y>=height){
-			Console.WriteLine("Out of bounds");
 			return;
 		}
-		KeepAlive(x,y);
 		//Convert x y to world coordinates
-		
-
-		//Update the dirty rect to encompass the new particle
-		int xw=x+(int)pos.X*width;
-		int yw=y+(int)pos.Y*height;
-		particles[x,y]=p;
-		p.x=xw;
-		p.y=yw;
-
-		//Wake up particles around the particle that just got set
-		for(int i=-4;i<5;i++){
-			for(int j=-4;j<5;j++){
-				//Convert i,j to world coordinates
-				int xw2=xw+i;
-				int yw2=yw+j;
-				world.KeepAlive(xw2,yw2);
-			}
+		sleep_timer=0;
+		if(y==height && p.properties.density==0.1f){
+			Console.WriteLine("????");
 		}
+		//Update the dirty rect to encompass the new particle
+		Vector2 pos_w = world.toWorldCoorinates(this,x,y);
+		p.x=(int)pos_w.X;
+		p.y=(int)pos_w.Y;
+		particles[x,y]=p;
 		p.chunk=this;
 		p.sleep_timer=0;
 
+		world.KeepAlive((int)pos_w.X,(int)pos_w.Y);
+
+		//Wake up particles around the particle that just got set
+		for(int i=-2;i<3;i++){
+			for(int j=-2;j<3;j++){
+				//Convert i,j to world coordinates
+				int xw2=(int)pos_w.X+i;
+				int yw2=(int)pos_w.Y+j;
+				//Make sure i,j is in bounds
+				if(!(i<0||i>=width||j<0||j>=height)){
+					particles[i,j].sleep_timer=0; 
+				}
+				world.KeepAlive(xw2,yw2);
+			}
+		}
 		DrawRectangle(
-			xw * world.resize_factor, 
-			yw * world.resize_factor, 
+			(int)pos_w.X * world.resize_factor, 
+			(int)pos_w.Y * world.resize_factor, 
 			world.resize_factor, 
 			world.resize_factor, 
 			p.GetColor()
@@ -185,7 +213,6 @@ public class Chunk{
 	}
 	public Particle Get(int x,int y){
 		if(x<0||x>=width||y<0||y>=height){
-			Console.WriteLine("Out of bounds");
 			return new Sand(x,y,world);
 		}
 		return particles[x,y];
@@ -207,7 +234,7 @@ public class Chunk{
 			((int)pos.Y)*width_world,
 			width_world,
 			height_world,
-			BLUE
+			sleep_timer>sleep_time?RED:BLUE
 		);
 	}
 

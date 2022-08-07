@@ -1,5 +1,12 @@
 using Raylib_cs;
 using static Raylib_cs.Raylib;
+
+public struct ParticleProperties{
+	//Physical properties of the particle
+	public float mass;
+	public float density;
+}
+
 //Base class for all particles
 public class Particle
 {
@@ -11,6 +18,7 @@ public class Particle
 	public float sleep_timer=0;
 	public float sleep_time{get; private set;}=5;
 	public string name {get; private set;}
+	public ParticleProperties properties;
 
 	public Particle(int x, int y, World world,string Name, Chunk c)
 	{
@@ -27,48 +35,50 @@ public class Particle
 		
 	}
 
-	internal bool CheckRelative(int x, int y, string name)
+	internal bool CheckRelative(int x, int y)
 	{
-		return world.Get(x + this.x, y + this.y).name == name;
+
+
+		return world.Get(x + this.x, y + this.y).properties.density<properties.density;
 	}
 
-	internal bool CheckDown(string type)
+	internal bool CheckDown()
 	{
-		return world.Get(x, y + 1).name==type;
+		return world.Get(x, y + 1).properties.density<properties.density;
 	}
 
-	internal bool CheckUp(string type)
+	internal bool CheckUp()
 	{
-		return world.Get(x, y - 1).name==type;
+		return world.Get(x, y - 1).properties.density<properties.density;
 	}
 
-	internal bool CheckRight(string type)
+	internal bool CheckRight()
 	{
-		return world.Get(x + 1, y).name==type;
+		return world.Get(x + 1, y).properties.density<properties.density;
 	}
 
-	internal bool CheckLeft(string type)
+	internal bool CheckLeft()
 	{
-		return world.Get(x - 1, y).name==type;
+		return world.Get(x - 1, y).properties.density<properties.density;
 	}
 
-	internal bool CheckDownRight(string type)
+	internal bool CheckDownRight()
 	{
-		return world.Get(x + 1, y + 1).name==type;
+		return world.Get(x + 1, y + 1).properties.density<properties.density;
 	}
-	internal bool CheckDownLeft(string type)
+	internal bool CheckDownLeft()
 	{
-		return world.Get(x - 1, y + 1).name==type;
-	}
-
-	internal bool CheckUpRight(string type)
-	{
-		return world.Get(x + 1, y - 1).name==type;
+		return world.Get(x - 1, y + 1).properties.density<properties.density;
 	}
 
-	internal bool CheckUpLeft(string type)
+	internal bool CheckUpRight()
 	{
-		return world.Get(x - 1, y - 1).name==type;
+		return world.Get(x + 1, y - 1).properties.density<properties.density;
+	}
+
+	internal bool CheckUpLeft()
+	{
+		return world.Get(x - 1, y - 1).properties.density<properties.density;
 	}
 
 	public virtual Color GetColor()

@@ -2,7 +2,9 @@ using Raylib_cs;
 using System.Numerics;
 using static Raylib_cs.Raylib;
 using Particles;
-
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 
 public class World
 {
@@ -55,7 +57,15 @@ public class World
 				sandbox[i, j] = new Chunk(chunk_size, i, j, this);
 			}
 		}
-		//Set(10,10,new Sand(10,10,this));
+		//Create 40 rows of sand particles
+		for (int i = 0; i < width; i++)
+		{
+			for (int j = 0; j < 30; j++)
+			{
+				Set(i,j,new Sand(i,j,this));
+			}
+		}
+
 	}
 
 	public Particle Get(int x, int y)
@@ -83,7 +93,6 @@ public class World
 
 	public void Move(int x, int y, int xto,int yto){
 		if(xto<0||xto>=width||yto<0||yto>=height){
-			Console.WriteLine("Out of bounds");
 			return;
 		}
 
@@ -102,11 +111,10 @@ public class World
 		if(chunk_dest!=chunk_src){
 			chunk_dest.Set((int)chunkCoordsDest.X,(int)chunkCoordsDest.Y,chunk_src.Get((int)chunkCoords.X,(int)chunkCoords.Y));
 			chunk_src.Set((int)chunkCoords.X,(int)chunkCoords.Y,new Air((int)chunkCoords.X,(int)chunkCoords.Y,this));
-			chunk_src.KeepAlive((int)chunkCoordsDest.X,(int)chunkCoordsDest.Y);
+			return;
 		}
 
-		//Get coordinates relative to chunk
-		
+		//Get coordinates relative to chun
 		chunk_dest.Move((int)chunkCoords.X,(int)chunkCoords.Y,(int)chunkCoordsDest.X,(int)chunkCoordsDest.Y);
 	}
 
@@ -119,7 +127,6 @@ public class World
 	public void Set(int x, int y, Particle tile)
 	{ 
 		if (x < 0 || x >= width || y < 0 || y >= height){
-			Console.WriteLine("Out of bounds");
 			return;
 		}
 		tile.timer=worldTimer+1;
@@ -161,23 +168,38 @@ public class World
 	{
 		Rectangle source = new Rectangle(0, 0, canvas.texture.width, -canvas.texture.height);
         DrawTextureRec(canvas.texture, source, new Vector2(0, 0), Color.WHITE);
+
+		//Debug draw chunks
 		for (int i = 0; i < width/chunk_size; i++)
 		{
 			for (int j = 0; j < height/chunk_size; j++)
 			{
-				sandbox[i,j].DebugDraw();
+				sandbox[i, j].DebugDraw();
 			}
 		}
 	}
 
+	public Vector2 toWorldCoorinates(Chunk originalChunk,int x, int y)
+	{
+		return new Vector2(
+			x+(int)originalChunk.pos.X*chunk_size,
+			y+(int)originalChunk.pos.Y*chunk_size
+		);
+	}
 	public void Update()
 	{
 		worldTimer++;
-		//Update all chunks
+
 		for (int i = 0; i < width/chunk_size; i++)
 		{
 			for (int j = 0; j < height/chunk_size; j++)
 			{
+				//Check if chunk sleep timer is above it's sleep time
+				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
+				{
+					continue;
+				}
+
 				sandbox[i,j].Update();
 			}
 		}
@@ -185,17 +207,24 @@ public class World
 		{
 			for (int j = 0; j < height/chunk_size; j++)
 			{
+				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
+				{
+					continue;
+				}
 				sandbox[i,j].CommitCells();
 			}
 		}
-
-		//Update the dirty rects of all chunks (doesn't seem to matter whether or not it goes before or after update)
 		for (int i = 0; i < width/chunk_size; i++)
 		{
 			for (int j = 0; j < height/chunk_size; j++)
 			{
+				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
+				{
+					continue;
+				}
 				sandbox[i,j].UpdateDirtRects();
 			}
 		}
+	
 	}
 }

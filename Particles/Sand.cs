@@ -4,25 +4,24 @@ namespace Particles{
         int[] randdir=new int[2]{-1,1};
         bool canMove=false; //Can this particle move to any valid spots?
         //Constructor
-        public Sand(int x, int y, World world) : base(x, y, world,"Sand",null){}
+        public Sand(int x, int y, World world) : base(x, y, world,"Sand",null){
+            properties.mass=0.5f;
+            properties.density=1f;
+        }
         public override void Update()
         {
             base.Update();
             
             int dir_x=World.RandomElement<int>(randdir);
             //Set canMove based on if the particle can move to any of the spots around it
-            canMove = CheckDown("Air")||CheckDownRight("Air")||CheckDownLeft("Air");
-            if(CheckDown("Air")){
-                world.Move(x,y,x,y+1);
-            }
-            else if(CheckRelative(dir_x,1,"Air")){
-                world.Move(x,y,x+dir_x,y+1);
-            }
-            else{
-                //Sometimes the random direction chosen for the sand will not be empty and can cause sand to get stuck.
-                //This will make sure that the sand won't get stuck by making the chunk keep it alive until it has no spaces left to move to.
-                if(canMove){
-                    world.KeepAlive(x,y);
+            canMove = CheckDown()||CheckDownRight()||CheckDownLeft();
+            if(canMove){
+                world.KeepAlive(x,y);
+                if(CheckDown()){
+                    world.Move(x,y,x,y+1);
+                }
+                else if(CheckRelative(dir_x,1)){
+                    world.Move(x,y,x+dir_x,y+1);
                 }
             }
         }
