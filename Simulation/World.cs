@@ -106,11 +106,17 @@ public class World
 		/*
 		Particle may be in a different chunk at the destination coordinates. We need to make sure we
 		swap chunks otherwise the coordinates will wrap and teleport it back to the opposite direction
-		of which it is leaving
+		of which it is leaving. The draw back of having to do this is that there's now very visible seams between chunks
+		as particles move between them.
 		*/
 		if(chunk_dest!=chunk_src){
 			chunk_dest.Set((int)chunkCoordsDest.X,(int)chunkCoordsDest.Y,chunk_src.Get((int)chunkCoords.X,(int)chunkCoords.Y));
 			chunk_src.Set((int)chunkCoords.X,(int)chunkCoords.Y,new Air((int)chunkCoords.X,(int)chunkCoords.Y,this));
+
+			/*
+			Not entirely sure why this happens, but if we don't return, we can end up with particles teleporting
+			to the bottom of chunks. 
+			*/
 			return;
 		}
 
@@ -119,28 +125,28 @@ public class World
 	}
 
 	public void KeepAlive(int x, int y){
-		//Convert x,y to chunk coordinates
 		Vector2 chunkCoords=ToChunkCoordinates(x,y);
+
 		GetChunkAt(x,y).KeepAlive((int)chunkCoords.X,(int)chunkCoords.Y);
 	}
 
 	public void Set(int x, int y, Particle tile)
 	{ 
-		if (x < 0 || x >= width || y < 0 || y >= height){
+		if (x < 0 || x >= width || y < 0 || y >= height)
 			return;
-		}
 		tile.timer=worldTimer+1;
 		
 		Chunk chunk=GetChunkAt(x,y);
+
 		//Get coordinates relative to chunk
 		Vector2 chunkCoords=ToChunkCoordinates(x,y);
+
 		//Set the tile in the chunk
 		chunk.Set((int)chunkCoords.X,(int)chunkCoords.Y,tile);
 	}
 
 	public void Paint(int x, int y, ParticleTypes particle, int brush_size)
 	{
-		//Check if x, y is within bounds of sandbox array
 		if (x < 0 || x >= width || y < 0 || y >= height)
 			return;
 
@@ -163,7 +169,10 @@ public class World
 			}
 		}
 	}
-
+	public bool InBounds(int x, int y)
+	{
+		return x >= 0 && x < width && y >= 0 && y < height;
+	}
 	public void Draw()
 	{
 		Rectangle source = new Rectangle(0, 0, canvas.texture.width, -canvas.texture.height);
@@ -189,42 +198,21 @@ public class World
 	public void Update()
 	{
 		worldTimer++;
-
-		for (int i = 0; i < width/chunk_size; i++)
-		{
-			for (int j = 0; j < height/chunk_size; j++)
-			{
-				//Check if chunk sleep timer is above it's sleep time
-				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
-				{
-					continue;
-				}
-
-				sandbox[i,j].Update();
-			}
+		//Update chunks
+		foreach(Chunk c in sandbox){
+			if(c.sleep_timer>=c.sleep_time)
+				continue;
+			c.Update();
 		}
-		for (int i = 0; i < width/chunk_size; i++)
-		{
-			for (int j = 0; j < height/chunk_size; j++)
-			{
-				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
-				{
-					continue;
-				}
-				sandbox[i,j].CommitCells();
-			}
+		foreach(Chunk c in sandbox){
+			if(c.sleep_timer>=c.sleep_time)
+				continue;
+			c.CommitCells();
+		}		
+		foreach(Chunk c in sandbox){
+			if(c.sleep_timer>=c.sleep_time)
+				continue;
+			c.UpdateDirtRects();
 		}
-		for (int i = 0; i < width/chunk_size; i++)
-		{
-			for (int j = 0; j < height/chunk_size; j++)
-			{
-				if (sandbox[i, j].sleep_timer >= sandbox[i, j].sleep_time)
-				{
-					continue;
-				}
-				sandbox[i,j].UpdateDirtRects();
-			}
-		}
-	
 	}
 }

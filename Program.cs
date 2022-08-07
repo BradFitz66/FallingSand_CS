@@ -4,7 +4,7 @@ using static Raylib_cs.Raylib;
 Original author: Rudyon
 Modified by: Badfitz67
 Changes:
-	Different name (kum was a bad name. Made it difficult if I wanted to use this project in any sort of professional capacity)
+	Different name 
 	Different rendering method for faster rendering (rendering to a render texture instead of drawing an individual rectangle for each particle)
 	Chunking of the particles to improve performance
 	Added a sleep timer to the particles to prevent them from updating when they cannot move
@@ -31,13 +31,13 @@ class Program
 	public static void Main()
 	{
 		int width, height, resize_factor, mouse_x, mouse_y, brush_size;
-		width = 600;
-		height = 600;
+		width = 800;
+		height = 800;
 		resize_factor = 4;
 		brush_size = 4;
 		ParticleTypes particle_type = ParticleTypes.SAND;
 		Raylib.InitWindow(width, height, "Falling Sand");
-		Raylib.SetTargetFPS(60);
+		Raylib.SetTargetFPS(GetMonitorRefreshRate(0));
 		Raylib.HideCursor();
 
 		World world = new World(width, height, resize_factor);

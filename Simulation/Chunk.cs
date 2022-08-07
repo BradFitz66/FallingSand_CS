@@ -9,16 +9,16 @@ public class Chunk{
 	public int width_world,height_world;
 	
 	public Vector2 pos{get; private set;}
-	Particle[,] particles;
+	public Particle[,] particles;
 	List<Tuple<int,int>> changes;//Destination, Source
 	public float sleep_timer=0;
 	public float sleep_time{get; private set;}=5;
 	World world;
 
 	//Dirty rect. Should be only read from (apart from when swapping)
-	int m_minX,m_minY,m_maxX,m_maxY;
+	public int m_minX,m_minY,m_maxX,m_maxY;
 	//Working dirty rect. Should only be written to.
-	int m_minXw,m_minYw,m_maxXw,m_maxYw;
+	public int m_minXw,m_minYw,m_maxXw,m_maxYw;
 
 	
 	
@@ -72,8 +72,6 @@ public class Chunk{
 				particles[x,y].Update();
 			}
 		}
-		//Log sleep timer
-		Console.WriteLine(sleep_timer);
 
 		sleep_timer+=1*GetFrameTime();
 	}
@@ -83,7 +81,7 @@ public class Chunk{
 		if(!(x<0||x>=width||y<0||y>=height)){
 			particles[x,y].sleep_timer=0;
 		}
-
+		sleep_timer=0;
 		m_minXw=Math.Clamp(Math.Min(x-4,m_minXw),0,width-1);
 		m_minYw=Math.Clamp(Math.Min(y-4,m_minYw),0,height-1);
 		m_maxXw=Math.Clamp(Math.Max(x+4,m_maxXw),0,width-1);
@@ -110,13 +108,10 @@ public class Chunk{
 
 		//Remove moves that aren't valid (destination is filled with a particle that has a higher density than the moving particle)
 		for(int i=0; i<changes.Count; i++){
-			//Convert to 2D coordinates
 			int dest_x=changes[i].Item1%width;
 			int dest_y=changes[i].Item1/width;
 			int src_x=changes[i].Item2%width;
 			int src_y=changes[i].Item2/width;
-			//Check if out of bounds, return if so
-			//Get particle at src
 			Particle source=particles[src_x,src_y];
 
 			Particle destination = particles[dest_x,dest_y];
@@ -137,50 +132,41 @@ public class Chunk{
 				//Choose a random particle to move
 				int rand = i_prev+World.RandomNumber(i-i_prev);
 
-				//Convert destination and source to 2D coordinates
 				int dest_x=changes[rand].Item1%width;
 				int dest_y=(changes[rand].Item1/width)%height;
 				int src_x=changes[rand].Item2%width;
 				int src_y=(changes[rand].Item2/width)%height;
-				//Check difference between dest_y and src_y
-				if(dest_y-src_y>1){
-					Console.WriteLine("Somehow teleported");
-				}
 
-				//Source particle
 				Particle particle_source=particles[src_x,src_y];
-				//Destination particle
-				Particle particle_destination = particles[dest_x,dest_y];
+				Particle particle_destination=particles[dest_x,dest_y];
+
 				//World coordinates of dest and src
 				Vector2 dest_w = world.toWorldCoorinates(this,dest_x, dest_y);
 				Vector2 src_w =  world.toWorldCoorinates(this,src_x,  src_y );
 
-				if((dest_y==height) && particle_source.properties.density==0.1f){
-					Console.WriteLine("?????");
+				//Commit the particle's movement
+				world.Set((int)dest_w.X,(int)dest_w.Y,particle_source);
+				world.Set((int)src_w.X,(int)src_w.Y,particle_destination);
+				if(particle_destination.properties.density==0.1f && particle_source.properties.density==1f){
+					Console.WriteLine("Particle dest:{0}",particle_destination);
 				}
-
-				//Move the particle
-				Set(dest_x,dest_y,particle_source);
-				Set(src_x,src_y,particle_destination);
-
 				i_prev=i+1;
 			}
 		}
 		changes.Clear();
 	}
-
+	public bool InBounds(int x, int y){
+		return x>=0&&x<width&&y>=0&&y<height;
+	}
 	//Set a particle in the simulation
 	public void Set(int x,int y,Particle p){
-		//Make sure x and y are in range
 		if(x<0||x>=width||y<0||y>=height){
 			return;
 		}
-		//Convert x y to world coordinates
 		sleep_timer=0;
 		if(y==height && p.properties.density==0.1f){
 			Console.WriteLine("????");
 		}
-		//Update the dirty rect to encompass the new particle
 		Vector2 pos_w = world.toWorldCoorinates(this,x,y);
 		p.x=(int)pos_w.X;
 		p.y=(int)pos_w.Y;
@@ -191,12 +177,11 @@ public class Chunk{
 		world.KeepAlive((int)pos_w.X,(int)pos_w.Y);
 
 		//Wake up particles around the particle that just got set
-		for(int i=-2;i<3;i++){
-			for(int j=-2;j<3;j++){
-				//Convert i,j to world coordinates
+		for(int i=-1;i<2;i++){
+			for(int j=-1;j<2;j++){
 				int xw2=(int)pos_w.X+i;
 				int yw2=(int)pos_w.Y+j;
-				//Make sure i,j is in bounds
+
 				if(!(i<0||i>=width||j<0||j>=height)){
 					particles[i,j].sleep_timer=0; 
 				}
@@ -219,7 +204,7 @@ public class Chunk{
 	}
 
 	public void DebugDraw(){
-		//Visualize direty rect with DrawRectangleLines
+		//Visualize dirty rect with DrawRectangleLines
 		DrawRectangleLines(
 			(m_minX*world.resize_factor) +((int)pos.X*width_world),
 			(m_minY*world.resize_factor) +((int)pos.Y*width_world),
