@@ -147,9 +147,14 @@ public class Chunk{
 				//Commit the particle's movement
 				world.Set((int)dest_w.X,(int)dest_w.Y,particle_source);
 				world.Set((int)src_w.X,(int)src_w.Y,particle_destination);
-				if(particle_destination.properties.density==0.1f && particle_source.properties.density==1f){
-					Console.WriteLine("Particle dest:{0}",particle_destination);
-				}
+
+				/*Current bug: sometimes particles are erased from existance for some reason
+
+				This is most noticable when pouring sand onto water. Once the sand has fallen below the water, the water
+				will usually be a lower level than before. 
+
+				I don't really know why this happens. Maybe it's caused by two lines above?
+				*/
 				i_prev=i+1;
 			}
 		}
@@ -164,9 +169,6 @@ public class Chunk{
 			return;
 		}
 		sleep_timer=0;
-		if(y==height && p.properties.density==0.1f){
-			Console.WriteLine("????");
-		}
 		Vector2 pos_w = world.toWorldCoorinates(this,x,y);
 		p.x=(int)pos_w.X;
 		p.y=(int)pos_w.Y;
