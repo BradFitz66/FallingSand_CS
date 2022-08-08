@@ -37,7 +37,7 @@ class Program
 		brush_size = 4;
 		ParticleTypes particle_type = ParticleTypes.SAND;
 		Raylib.InitWindow(width, height, "Falling Sand");
-		Raylib.SetTargetFPS(GetMonitorRefreshRate(0));
+		Raylib.SetTargetFPS(60);//Would have to implement a fixed timestep to make this work at higher framerates. Will do at a later date.
 		Raylib.HideCursor();
 
 		World world = new World(width, height, resize_factor);
@@ -46,6 +46,8 @@ class Program
 
 		while (!Raylib.WindowShouldClose())
 		{
+			//ToDo!: Add a fixed timestep to this to make it work at higher framerates.
+			
 			BeginTextureMode(world.canvas);
 			world.Update();
 
