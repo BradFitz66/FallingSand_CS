@@ -16,5 +16,5 @@ The plan for this is to make a somewhat indepth falling sand simulation that sup
 - [x] Chunks
 - [x] Dirty rects
 - [ ] Multithreading
-- [ ] Fast particle movement
+- [ ] Fast particle movement (particles can move more than 1 cell per frame)
 - [ ] Expandable/infinite world 
